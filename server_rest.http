@@ -1,0 +1,9 @@
+POST http://127.0.0.1:8888/
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+    "messages": [
+        {"role": "user", "content": "What is 2 + 2?"}
+    ]
+}

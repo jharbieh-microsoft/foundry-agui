@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dojo Standalone</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Segoe UI, Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .wrap {
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      input,
+      textarea,
+      button {
+        border: 1px solid #334155;
+        background: #111827;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 14px;
+      }
+      input {
+        flex: 1;
+        min-width: 320px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .panel {
+        background: #111827;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .muted {
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h2>Dojo Standalone (Agent Tester)</h2>
+      <p class="muted">Start your Python AG-UI server first, then send prompts from here.</p>
+
+      <div class="row" style="margin-bottom: 12px">
+        <input id="endpoint" value="http://127.0.0.1:8888/" />
+        <button id="clear">Clear</button>
+      </div>
+
+      <textarea id="prompt" placeholder="Type a prompt..."></textarea>
+      <div class="row" style="margin: 12px 0">
+        <button id="send">Send</button>
+      </div>
+
+      <div class="panel">
+        <pre id="output" class="muted">Assistant output will stream here...</pre>
+      </div>
+    </div>
+
+    <script>
+      const endpointInput = document.getElementById("endpoint");
+      const promptInput = document.getElementById("prompt");
+      const sendButton = document.getElementById("send");
+      const clearButton = document.getElementById("clear");
+      const output = document.getElementById("output");
+
+      const messages = [];
+
+      function setOutput(text, muted = false) {
+        output.textContent = text;
+        output.className = muted ? "muted" : "";
+      }
+
+      function appendText(text) {
+        if (output.className === "muted") {
+          output.className = "";
+          output.textContent = "";
+        }
+        output.textContent += text;
+      }
+
+      function collectText(value) {
+        if (typeof value === "string") {
+          return value;
+        }
+
+        if (!value || typeof value !== "object") {
+          return "";
+        }
+
+        if (typeof value.text === "string") {
+          return value.text;
+        }
+
+        if (Array.isArray(value)) {
+          return value.map(collectText).join("");
+        }
+
+        return Object.values(value).map(collectText).join("");
+      }
+
+      async function sendMessage() {
+        const endpoint = endpointInput.value.trim();
+        const prompt = promptInput.value.trim();
+
+        if (!endpoint) {
+          setOutput("Endpoint is required.", true);
+          return;
+        }
+
+        if (!prompt) {
+          setOutput("Prompt is required.", true);
+          return;
+        }
+
+        sendButton.disabled = true;
+        messages.push({ role: "user", content: prompt });
+        setOutput("", false);
+
+        try {
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify({ endpoint, messages }),
+          });
+
+          if (!response.ok || !response.body) {
+            setOutput(`Request failed: ${response.status} ${response.statusText}`, true);
+            return;
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let assistantText = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+
+            for (const chunk of chunks) {
+              const lines = chunk.split("\n");
+              for (const line of lines) {
+                if (!line.startsWith("data:")) {
+                  continue;
+                }
+
+                const data = line.slice(5).trim();
+                if (!data || data === "[DONE]") {
+                  continue;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const text = collectText(parsed);
+                  if (text) {
+                    assistantText += text;
+                    appendText(text);
+                  }
+                } catch {
+                  assistantText += data;
+                  appendText(data);
+                }
+              }
+            }
+          }
+
+          messages.push({ role: "assistant", content: assistantText || output.textContent });
+        } catch (error) {
+          setOutput(`Error: ${error.message}`, true);
+        } finally {
+          sendButton.disabled = false;
+        }
+      }
+
+      sendButton.addEventListener("click", sendMessage);
+      promptInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          sendMessage();
+        }
+      });
+      clearButton.addEventListener("click", () => {
+        messages.length = 0;
+        promptInput.value = "";
+        setOutput("Assistant output will stream here...", true);
+      });
+    </script>
+  </body>
+</html>

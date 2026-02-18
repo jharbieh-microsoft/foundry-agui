@@ -1,0 +1,8 @@
+curl -N http://127.0.0.1:8888/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "messages": [
+      {"role": "user", "content": "What is 2 + 2?"}
+    ]
+  }'
