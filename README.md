@@ -1,3 +1,6 @@
+# Overview
+This repository contains the AG-UI server and client code for testing agents built with the Microsoft Agent Framework. AG-UI provides a user interface for interacting with agents, allowing you to test and debug their behavior in a conversational format. The server component handles communication between the AG-UI client and the agent, while the client component provides the user interface for sending messages to the agent and receiving responses.
+
 # Setup Instructions for AG-UI
 
 # Prerequisites
@@ -84,8 +87,12 @@ You can use the .http file to test the REST API calls to the AG-UI server. Make 
 
 # Reference Material
 [AG-UI Overview](https://docs.ag-ui.com/introduction)
+
 [AG-UI GitHub Repository](https://github.com/ag-ui-protocol/ag-ui)
+
 [Getting Started with AG-UI](https://learn.microsoft.com/en-us/agent-framework/integrations/ag-ui/getting-started?pivots=programming-language-python)
+
 [Agent Framework Hello Agent Sample](https://github.com/microsoft/agent-framework/blob/main/python/samples/01-get-started/01_hello_agent.py)
+
 [Testing with AG-UI Dojo](https://learn.microsoft.com/en-us/agent-framework/integrations/ag-ui/testing-with-dojo?pivots=programming-language-python)
 
